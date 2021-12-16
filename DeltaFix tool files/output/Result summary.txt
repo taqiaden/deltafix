@@ -1,0 +1,32 @@
+Number of horizontal points : 101
+Number of vertical points : 85
+Transformed zero location : (48.400000,38.000000)
+Force 0 transformed location is (53.200000,114.400000)
+Force components, F_x=889.600000, F_y=889.600000
+Force 1 transformed location is (104.000000,114.400000)
+Force components, F_x=889.600000, F_y=889.600000
+Force 2 transformed location is (154.800000,114.400000)
+Force components, F_x=889.600000, F_y=889.600000
+Number of closed loop paths : 1
+-------------------------------------
+Callibartion phase started
+-------------------------------------
+obj1 Ave. = 28.0397
+obj1 SD. = 214.154
+obj2 Ave. = 13.6348
+obj2 SD. = 3.25261
+obj3 Ave. = 1.00002e-011
+obj3 SD. = 3.37654e-015
+obj4 Ave. = 651.789
+obj4 SD. = 2434.09
+obj5 Ave. = 3143.91
+obj5 SD. = 5118.14
+Main optimization phase started
+-------------------------------------
+Optimum locations of locators and clamps
+  L 1: (348.400000,161.000000,8.000000)
+  L 2: (66.400000,290.000000,8.000000)
+  L 3: (324.400000,38.000000,8.000000)
+ C 1: (48.400000,197.000000,8.000000)
+  C 2: (348.400000,65.000000,8.000000)
+Elapsed time: 11 Min. and 15 sec.
