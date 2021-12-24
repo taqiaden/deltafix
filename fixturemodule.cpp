@@ -257,10 +257,10 @@ void fixturemodule::ValuesInitilization()
 	JacobianThreshold=0.0;
 	forcesErrorAllowance=0.001;
 	frictionOfSmallRegionDiamter=0.3;
-	coneAngleInRadian=0.523;    
+	coneAngleInRadian=0.26;    
 	numberOfPairs=4;								//Number of adjecent pairs to use when forward and backward interpolating  for approximating first dervative, second dervative and curvature of a point 
 	extremPointsAtOuterBoundary=true;  
-	dropPercentage=0.2;
+	dropPercentage=0.20;
 	maximumBetaToPointsSize=0.2;
 	machiningForces_totalExposureScore=0;
 	iszeroCuttingForce.clear();
@@ -582,16 +582,18 @@ void fixturemodule::clearVariables()
 }
 bool fixturemodule::loadANNFiles()
 {
-	w1=	getCSVFileData(w1_f,"\\DeltaFix tool files\\w1.csv");
-	w2=	getCSVFileData(w2_f,"\\DeltaFix tool files\\w2.csv");
-	b1=	getCSVFileData(b1_f,"\\DeltaFix tool files\\b1.csv");
-	b2=	getCSVFileData(b2_f,"\\DeltaFix tool files\\b2.csv");
+	w1=	getCSVFileData("\\DeltaFix tool files\\w1.csv");
+	w2=	getCSVFileData("\\DeltaFix tool files\\w2.csv");
+	w3=	getCSVFileData("\\DeltaFix tool files\\w3.csv");
+	b1=	getCSVFileData("\\DeltaFix tool files\\b1.csv");
+	b2=	getCSVFileData("\\DeltaFix tool files\\b2.csv");
+	b3=	getCSVFileData("\\DeltaFix tool files\\b3.csv");
 	inputMinAndRange=	getCSVFileData(inputMinAndRange_f,"\\DeltaFix tool files\\inputMinAndRange.csv");
 	outputMinAndRange=	getCSVFileData(outputMinAndRange_f,"\\DeltaFix tool files\\outputMinAndRange.csv");
 	AveDevNormalizationCoeficients=	getCSVFileData(AveDevNormalizationCoeficients_f,"\\DeltaFix tool files\\AveDevNormalizationCoeficients.csv");
 	machiningForcesTabular_orginal=	getCSVFileData(machinigForcesData,"\\DeltaFix tool files\\quasi-static loads.csv");
 	//Check if files are laoded
-	if(w1.size()==0 ||w2.size()==0||b1.size()==0||b2.size()==0||inputMinAndRange.size()==0||outputMinAndRange.size()==0||AveDevNormalizationCoeficients.size()==0||machiningForcesTabular_orginal.size()==0)
+	if(w1.size()==0 ||w2.size()==0||w3.size()==0||b1.size()==0||b2.size()==0||b3.size()==0||inputMinAndRange.size()==0||outputMinAndRange.size()==0||AveDevNormalizationCoeficients.size()==0||machiningForcesTabular_orginal.size()==0)
 	{
 		UpdateResultSummary("Error: Unable to retrieve  the ANN parameters or machining forces tabular data files");
 		return false;
@@ -618,6 +620,16 @@ std::vector<std::vector<double> >  fixturemodule::getCSVFileData(NXOpen::BlockSt
 		{
 			data=	CSVToArray(defaultPath);
 		}
+	}
+	return data;
+}
+std::vector<std::vector<double> >  fixturemodule::getCSVFileData(string defaultPath)
+{
+	std::vector<std::vector<double> > data;
+	std::ifstream test2(defaultPath); 
+	if(test2)
+	{
+		data=	CSVToArray(defaultPath);
 	}
 	return data;
 }
@@ -660,12 +672,12 @@ void fixturemodule::runDNSA()
 		}
 		if(!extractSelectionDomain(curveture_all,curveture_subSet,outputPath))
 		{
-		return;
+			return;
 		}
 		if(showSimulation)
 		{
 			UpdateProgressBar("Draw Simulation points");
-			pointsCloud2_sub=	drawPoints(selectionDomain);
+			pointsCloud2_sub=drawPoints(selectionDomain);
 		}
 		vector<int> optimumPointsLocation=		DNSAExecution(&extremePoints,&curveture_subSet,&weights_x,&weights_y,outputPath[0].size());
 		auto end =chrono::steady_clock::now();

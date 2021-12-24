@@ -297,7 +297,7 @@ public:
 				{
 					data=data +",";
 				}
-				data=data + std::to_string(matrix[i][j]);
+				data=data + doubleToString(matrix[i][j]);
 			}
 			data=data +" \n";
 		}
