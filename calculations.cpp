@@ -336,7 +336,28 @@ public:
 		std::string data;
 		for(int j=0;j<matrix.size();j++)
 		{
-			data=data +" , "+ doubleToString(matrix[j]);
+			if(j==0)
+			{
+			data= doubleToString(matrix[j]);
+			}else
+			{
+data=data +" , "+ doubleToString(matrix[j]);
+			}
+		}
+		return data;
+	}
+	std::string matrixToOneLine(	std::vector< std::string> &matrix)
+	{
+		std::string data;
+		for(int j=0;j<matrix.size();j++)
+		{
+			if(j==0)
+			{
+			data= (matrix[j]);
+			}else
+			{
+data=data +" , "+ (matrix[j]);
+			}
 		}
 		return data;
 	}
@@ -345,16 +366,29 @@ public:
 		std::string data;
 		for(int j=0;j<matrix.size();j++)
 		{
-			data=data +" , "+ std::to_string(matrix[j]);
+			if(j==0)
+			{
+			data= doubleToString(matrix[j]);
+			}else
+			{
+data=data +" , "+ doubleToString(matrix[j]);
+			}
 		}
 		return data;
 	}
+	
 	std::string matrixToOneLine(	double matrix[],int size)
 	{
 		std::string data;
 		for(int j=0;j<size;j++)
 		{
-			data=data +" , "+ std::to_string(matrix[j]);
+			if(j==0)
+			{
+			data= doubleToString(matrix[j]);
+			}else
+			{
+data=data +" , "+ doubleToString(matrix[j]);
+			}
 		}
 		return data;
 	}
@@ -438,82 +472,13 @@ public:
 	{
 		return M + (rand() / ( RAND_MAX / (N-M) ) ) ;  
 	}
-	void smoothTheDervative(std::vector<		std::vector <double>>&pathPointsUnitNorm_x,std::vector<		std::vector <double>>&pathPointsUnitNorm_y)
-	{
-		//dervative smoothing
-		std::vector<double>temp_newSmoothedValues_x;
-		std::vector<double>temp_newSmoothedValues_y;
-		for(int i=0;i<pathPointsUnitNorm_x[0].size();i++)
-		{
-			double previusValue_x,nextValue_x;
-			double previusValue_y,nextValue_y;
-			if(i==0)
-			{
-				previusValue_x=pathPointsUnitNorm_x[0][pathPointsUnitNorm_x[0].size()-1];
-				previusValue_y=pathPointsUnitNorm_y[0][pathPointsUnitNorm_y[0].size()-1];
-			}else
-			{
-				previusValue_x=pathPointsUnitNorm_x[0][i-1];
-				previusValue_y=pathPointsUnitNorm_y[0][i-1];
-			}
-			if(i==pathPointsUnitNorm_x[0].size()-1)
-			{
-				nextValue_x=pathPointsUnitNorm_x[0][0];
-				nextValue_y=pathPointsUnitNorm_y[0][0];
-			}else
-			{
-				nextValue_x=pathPointsUnitNorm_x[0][i+1];
-				nextValue_y=pathPointsUnitNorm_y[0][i+1];
-			}
-			double temp_x=(previusValue_x*0.25)+(pathPointsUnitNorm_x[0][i]*0.5)+(nextValue_x*0.25);
-			double temp_y=(previusValue_y*0.25)+(pathPointsUnitNorm_y[0][i]*0.5)+(nextValue_y*0.25);
-			temp_newSmoothedValues_x.push_back(temp_x/sqrt((temp_x*temp_x)+(temp_y*temp_y)));
-			temp_newSmoothedValues_y.push_back(temp_y/sqrt((temp_x*temp_x)+(temp_y*temp_y)));
-		}
-		pathPointsUnitNorm_x[0]=temp_newSmoothedValues_x;
-		pathPointsUnitNorm_y[0]=temp_newSmoothedValues_y;
-	}
-	void thetaProportionalSmooth(std::vector<		std::vector <double>>&pathPointsUnitNorm_x,std::vector<		std::vector <double>>&pathPointsUnitNorm_y,double theta)
-	{
-		double e=2.71828182845904523536;
-		//dervative smoothing
-		std::vector<double>temp_newSmoothedValues_x;
-		std::vector<double>temp_newSmoothedValues_y;
-		int numberOfSmoothingPairs=50 *pow(e,-theta);
-		for(int i=0;i<pathPointsUnitNorm_x[0].size();i++)
-		{
-			double sum_x=0,sum_y=0;
-			for(int j=1;j<=numberOfSmoothingPairs;j++)
-			{
-				//next value
-				sum_x+=pathPointsUnitNorm_x[0][(i+j)%pathPointsUnitNorm_x[0].size()];
-				sum_y+=pathPointsUnitNorm_y[0][(i+j)%pathPointsUnitNorm_y[0].size()];
-				//previous value
-				int position_temp=i-j;
-				if(position_temp>=0)
-				{
-					sum_x+=pathPointsUnitNorm_x[0][(position_temp)];
-					sum_y+=pathPointsUnitNorm_y[0][(position_temp)];
-				}else
-				{									
-					sum_x+=pathPointsUnitNorm_x[0][pathPointsUnitNorm_x[0].size()+position_temp];
-					sum_y+=pathPointsUnitNorm_y[0][pathPointsUnitNorm_y[0].size()+position_temp];
-				}
-			}
-			double temp_x=(sum_x+pathPointsUnitNorm_x[0][i])/(numberOfSmoothingPairs+1);
-			double temp_y=(sum_y+pathPointsUnitNorm_y[0][i])/(numberOfSmoothingPairs+1);
-			temp_newSmoothedValues_x.push_back(temp_x/sqrt((temp_x*temp_x)+(temp_y*temp_y)));
-			temp_newSmoothedValues_y.push_back(temp_y/sqrt((temp_x*temp_x)+(temp_y*temp_y)));
-		}
-		pathPointsUnitNorm_x[0]=temp_newSmoothedValues_x;
-		pathPointsUnitNorm_y[0]=temp_newSmoothedValues_y;
-	}
-	void thetaProportionalSmooth(	std::vector <double>&values,double alpha)
+	void SmoothByBin(	std::vector <double>&values,double binSize)
 	{ 
 		double e=2.71828182845904523536;
 		//dervative smoothing
 		std::vector<double>temp_newSmoothedValues;
-		int numberOfSmoothingPairs=50 *pow(e,-alpha);
+		//int numberOfSmoothingPairs=50 *pow(e,-alpha);
+		int numberOfSmoothingPairs=binSize;
 		for(int i=0;i<values.size();i++)
 		{
 			double sum=0;
@@ -682,7 +647,7 @@ public:
 	}
 	int newPointGenerator(double k,int mean, int rangeSize)
 	{
-		double a_min=6;
+		double a_min=2;
 		double c_min=1;
 		int newPoint;
 		double	a_max=(rangeSize-1)/2;
@@ -691,9 +656,16 @@ public:
 		double c=	c_min+k*k*(c_max-c_min);
 		int	temp=randomOfCustomProbabilty2(a,c);
 		newPoint=mean+temp;
-		if(newPoint<0 || newPoint>=rangeSize)
+		/*if(newPoint<0 || newPoint>=rangeSize)
 		{
 			newPoint=mean-temp;
+		}*/
+		if(newPoint<0)
+		{
+			newPoint=rangeSize+newPoint;
+		}else if(newPoint>=rangeSize)
+		{
+			newPoint-=rangeSize;
 		}
 		return newPoint;
 	}
@@ -786,5 +758,19 @@ public:
 		std::ostringstream streamObj;
 		streamObj << number;
 		return streamObj.str();
+	}
+	double halfRangeShifting(double point,double range)
+	{
+		double conversionDifference=( point+(range/2) )-(int)( point+(range/2) );
+	return ( (int)( point+(range/2) ) )%( (int)range )+conversionDifference;
+	}
+	double halfRangeShifting_back(double point,double range)
+	{
+		double result=point-(range/2);
+		if(result<0)
+		{
+		result+=range;
+		}
+		return result;
 	}
 };

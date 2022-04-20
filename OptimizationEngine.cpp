@@ -635,13 +635,15 @@ bool fixturemodule::InitilizeForcesMoments_atZeroRef()
 		if( (machiningForcesTabular_orginal[i][0]==0 && machiningForcesTabular_orginal[i][1]==0 && machiningForcesTabular_orginal[i][2]==0))
 		{
 			iszeroCuttingForce[i]=true;
-		}
-		if(real_forcesApplicationPoints_fromZeroReference_Transforemed[i].X<0.0 || 
-			real_forcesApplicationPoints_fromZeroReference_Transforemed[i].Y<0.0 ||
-			real_forcesApplicationPoints_fromZeroReference_Transforemed[i].X>transformed_width || 
-			real_forcesApplicationPoints_fromZeroReference_Transforemed[i].Y>transformed_legnth)
+		}else
 		{
-			forceOutsideBoundary=true;
+			if(real_forcesApplicationPoints_fromZeroReference_Transforemed[i].X<0.0 || 
+				real_forcesApplicationPoints_fromZeroReference_Transforemed[i].Y<0.0 ||
+				real_forcesApplicationPoints_fromZeroReference_Transforemed[i].X>transformed_width || 
+				real_forcesApplicationPoints_fromZeroReference_Transforemed[i].Y>transformed_legnth)
+			{
+				forceOutsideBoundary=true;
+			}
 		}
 	}
 	//define new force moment vector at reference point
@@ -699,12 +701,14 @@ double fixturemodule::costCalculation(	std::vector <double>*pathPointsUnitNorm_x
 		int matrixRank;
 		if(abs( cal.determinant(J[0]))<=JacobianThreshold)
 		{
+			localizationCost=0;
 			return 0;
 		}
 		JacobianDetermint+=to_string( cal.determinant(J[0]))+"\n";
 		matrixRank=cal.compute_rank(J[0]);	
 		if(matrixRank!=3)
 		{
+			localizationCost=0;
 			return 0;
 		}
 		error="2";
@@ -837,40 +841,43 @@ double fixturemodule::costCalculation(	std::vector <double>*pathPointsUnitNorm_x
 		error="7";
 		detachmentScore=0.0;
 		locatorsReactions=0.0;
-		//constants for detachment score calcuations
-		double f=5*clampingForce;
-		double t=clampingForce/20;
-		double kd=((t*(f/2-1))/(f-t))-1;	
-		double a=5*t;
-		double b=(t*(f/2-1))/(a-t+kd+1);
-		limdas_spreed=0;
-		locatorsReactions=0;
+		limdas_spreed=0.0;
 		limda1.clear();limda2.clear();limda3.clear();
+		//constants for detachment penalty
+		double a=(3*clampingForce)/10;
+		double ee=((45*a*a)-(9*a))/((41*a)+8);
+
 		for(int z=0;z<limda.size();z++)
 		{
-			double exposureFriction=machiningForcesTabular_orginal[z][4]/machiningForces_totalExposureScore;
 			for (int i = 0; i < 3; i++)
 			{
 				double reversedLimda=-limda[z][i][0];
 				if(reversedLimda<=0)
 				{
-					detachmentScore+=exposureFriction*(abs(reversedLimda)+f-b);
+					detachmentScore+=exposureFriction[z]*(abs(reversedLimda)+(10*a));
 				}else{ 
-					locatorsReactions+=exposureFriction*reversedLimda;
-					if(reversedLimda<t)
+					if(increaseReactionForce)
 					{
-						detachmentScore+=exposureFriction*(f-reversedLimda-b);
-					}else if(reversedLimda<a)
+						locatorsReactions+=exposureFriction[z]*(1/reversedLimda);
+					}else
 					{
-						detachmentScore+=exposureFriction*(((t*(f/2-1))/(reversedLimda-t+kd+1))-b);
+						locatorsReactions+=exposureFriction[z]*reversedLimda;
 					}
-				}
+
+					if(reversedLimda<=a)
+					{
+						detachmentScore+=exposureFriction[z]*((10*a)-reversedLimda-ee);
+					}else if(reversedLimda<=5*a)
+					{
+						detachmentScore+=exposureFriction[z]*(( ((45*a*a)-(9*a)) / ((9*reversedLimda)-(4*a)+8) )-ee);
+					}
+				} 
 			}
+			//UpdateResultSummary("detachment for z"+to_string(z)+" = "+to_string(detachmentScore)+" exposure = "+to_string(exposureFriction[z]));
 			limda1.push_back(limda[z][0][0]); limda2.push_back(limda[z][1][0]);  limda3.push_back(limda[z][2][0]); 
 			vector<double> currentLimdas; currentLimdas.push_back(limda[z][0][0]); currentLimdas.push_back(limda[z][1][0]); currentLimdas.push_back(limda[z][2][0]);
-			limdas_spreed+=exposureFriction*(abs(currentLimdas[0]-currentLimdas[1])+abs(currentLimdas[0]-currentLimdas[2])+abs(currentLimdas[1]-currentLimdas[2]));
+			limdas_spreed+=exposureFriction[z]*(pow(abs(currentLimdas[0]-currentLimdas[1]),2)+pow(abs(currentLimdas[0]-currentLimdas[2]),2)+pow(abs(currentLimdas[1]-currentLimdas[2]),2));
 		}
-		detachmentScore=detachmentScore/clampingForce;
 		if(minimumrDetachmentScore==0 || minimumrDetachmentScore>detachmentScore)
 		{
 			minimumrDetachmentScore=detachmentScore;
@@ -1513,12 +1520,12 @@ void fixturemodule::distanceScore(int**integerOfPointsCloud,vector<	vector<array
 					double y_dif=alpha*((*outputPath)[0][p].b-j);
 					double distance=sqrt(x_dif*x_dif+y_dif*y_dif);
 					double intensityFactor=0.0; // weight at distance/ number of points at a distance
-					if(distance<(maxBoundedDistance/2))
+					if(distance<(boundaryDiagonal/2))
 					{
 						intensityFactor=(1-distance/(boundaryDiagonal/2));
 						pointsInBigRegion_all[p]+=intensityFactor*1.0; 
 					}
-					if(distance<((maxBoundedDistance/2)*frictionOfSmallRegionDiamter))
+					if(distance<((boundaryDiagonal/2)*frictionOfSmallRegionDiamter))
 					{
 						intensityFactor=(1-distance/((boundaryDiagonal/2)*frictionOfSmallRegionDiamter));
 						pointsInSmallregion_all[p]+=intensityFactor*1.0;
@@ -1540,12 +1547,12 @@ void fixturemodule::distanceScore(int**integerOfPointsCloud,vector<	vector<array
 					double distance=sqrt(x_dif*x_dif+y_dif*y_dif);
 					double intensityFactor=0.0;
 					//check if force is outside the geometry
-					if(distance<(maxBoundedDistance/2))
+					if(distance<(boundaryDiagonal/2))
 					{
 						intensityFactor=(1-distance/(boundaryDiagonal/2));
 						pointsInBigRegion_F[p]+=intensityFactor*1;
 					}
-					if(distance<((maxBoundedDistance/2)*frictionOfSmallRegionDiamter))
+					if(distance<((boundaryDiagonal/2)*frictionOfSmallRegionDiamter))
 					{
 						intensityFactor=(1-distance/((boundaryDiagonal/2)*frictionOfSmallRegionDiamter));
 						pointsInSmallregion_F[p]+=intensityFactor*1; 
@@ -1693,7 +1700,7 @@ void fixturemodule::conicalBeamAndShearLine(int**integerOfPointsCloud,vector<	ve
 				double det= firstVector[0]*secondVector[1]-firstVector[1]*secondVector[0]; // x1*y2 - y1*x2
 				double angleInRadian=atan2(det,dot);
 				double lengthOfSecondVector=sqrt(  secondVector[0]*secondVector[0]+  secondVector[1]*secondVector[1]   );
-				double intensityFactor=(1-lengthOfSecondVector/maxBoundedDistance)/ ( (2*tan(coneAngleInRadian)*lengthOfSecondVector)/alpha +1);
+				double intensityFactor=(1-lengthOfSecondVector/boundaryDiagonal);
 				if(		integerOfPointsCloud[i][j]!=2)
 				{
 					if(abs(angleInRadian)<coneAngleInRadian)
@@ -1743,7 +1750,7 @@ vector<std::vector<double>> fixturemodule::annInputs(vector<int> generatedPoints
 		for (int p = 0; p < limda1.size(); p++)
 		{
 			vector<double> input;
-			input.push_back(clampingForce); //1 
+			input.push_back(boundaryDiagonal/alpha); //1 
 			double cuttingForceToClampingForceRatio=sqrt(appliedForcesMoments_atZeroRef[p][0][0]*appliedForcesMoments_atZeroRef[p][0][0]+
 				appliedForcesMoments_atZeroRef[p][1][0]*appliedForcesMoments_atZeroRef[p][1][0])/clampingForce;
 			input.push_back(cuttingForceToClampingForceRatio); //2
@@ -1753,7 +1760,7 @@ vector<std::vector<double>> fixturemodule::annInputs(vector<int> generatedPoints
 			input.push_back(cumulativeCrossDistanceOfFixels/boundaryDiagonal); //6
 			for (int i = 0; i < 5; i++)
 			{
-				input.push_back(pointsInSmallregion_subSet[generatedPointsLocation[i]]); //7,8,8,10,11
+				input.push_back(pointsInSmallregion_subSet[generatedPointsLocation[i]]); //7,8,9,10,11
 			}
 			input.push_back(pointsInSmallregion_F[p]); //12
 			for (int i = 0; i < 5; i++)
@@ -1795,31 +1802,13 @@ vector<std::vector<double>> fixturemodule::annInputs(vector<int> generatedPoints
 			}
 			for (int i = 0; i < 3; i++)
 			{
-				input.push_back(freedomScore[i]); //31.32.33
-			}
-			input.push_back((double)numberOfSurfacePoints); //34
-			input.push_back((double)numberOfPointsInBoundedRectangular); //35
-			input.push_back((double)pointsInOuterEdge);  //36
-			input.push_back((double)numberOfInCavityPoints);  //37
-			input.push_back((double)nodesNumber_V); //38
-			for (int i = 0; i < 3; i++)
-			{
-				input.push_back(deflectionScore_x[p][i]);	//39,40,41
+				input.push_back(freedomScore[i]/boundaryDiagonal); //31,32,33
 			}
 			for (int i = 0; i < 3; i++)
 			{
-				input.push_back(deflectionScore_y[p][i]);	//42,43,44
+				double deflectionResultant=sqrt((deflectionScore_x[p][i]*deflectionScore_x[p][i])+(deflectionScore_y[p][i]*deflectionScore_y[p][i]));
+				input.push_back(deflectionResultant/boundaryDiagonal);	//34.35,36
 			}
-			for(int i=0;i<5;i++)
-			{
-				input.push_back(minimumDistanceToCavity_subSet[generatedPointsLocation[i]]/boundaryDiagonal);  //45,46,47,48,49
-			}
-			input.push_back(minimumDistanceToCavity_F[p]/boundaryDiagonal);  //50
-			for(int i=0;i<5;i++)
-			{
-				input.push_back(cumulativeDistanceToCavity_subSet[generatedPointsLocation[i]]/boundaryDiagonal); //51,52,53,54,55
-			}
-			input.push_back(cumulativeDistanceToCavity_F[p]/boundaryDiagonal); //56
 			saveStringToFile(&cal.matrixToString(input),"annInput");
 			inputx.push_back(input);
 		}
@@ -1829,6 +1818,7 @@ vector<std::vector<double>> fixturemodule::annInputs(vector<int> generatedPoints
 		messageInfo(errorLevel);
 	}
 }
+
 void fixturemodule::fixelsDistanceAttributes(vector<int> generatedPointsLocation,	vector<arrayLocation>* selectionDomain)
 {
 	// cross attributes
@@ -1903,6 +1893,7 @@ void fixturemodule::showFinalResult(tag_t** pointsCloud,	vector<int> optimumPoin
 	string errorLevel;
 	vector<	Point3d> locations_transformed(5);
 	vector<	Point3d> locations_orginal(5);
+	UpdateResultSummary("Indexes of optimum points: "+cal.matrixToOneLine(optimumPointsLocation));
 	for (int i = 0; i < locations_transformed.size(); i++)
 	{
 		locations_transformed[i].X=zeroLocation_transformed.X+(double)selectionDomain[optimumPointsLocation[i]].a*alpha;
@@ -1935,10 +1926,21 @@ vector<int>  fixturemodule::DNSAExecution(vector<arrayLocation> *extremePoints,v
 	try{
 		int currentHighlightedGroup[5]={0};
 		vector<int> optimumPointsLocation(5,0);
-		vector<	vector<double>> obj_calibration(5);
-		vector<double> obj_ave(5,0);
-		vector<	double> obj_dev(5,1);
+		vector<	vector<double>> obj_calibration(6);
+		vector<double> obj_ave(6,0);
+		vector<	double> obj_dev(6,1);
 		double optimizationProgress=0;
+		int domainSize=selectionDomain.size();
+		UpdateResultSummary("Domain size = "+to_string(domainSize));
+		UpdateResultSummary("Number of reference points = "+to_string(extremePoints->size()));
+
+		for (int i = 0; i < 6; i++)
+		{
+
+			UpdateResultSummary("k"+to_string(i+1)+" = "+cal.doubleToString(k_obj[i]));
+
+		}
+
 		for(int c=0;c<2;c++)
 		{
 			if(c==0)
@@ -1953,10 +1955,11 @@ vector<int>  fixturemodule::DNSAExecution(vector<arrayLocation> *extremePoints,v
 				UpdateProgressBar("Optimization progress "+to_string((int)optimizationProgress)+"%");
 			}
 			double minimumCost=0;
-			double pointMeanPointer[5]={0};
+			vector<double> pointMeanPointer(5,0);
 			vector<vector<int>> optimumPointsSetMap(5);
 			vector<double> costReciprocalOfOptimum;
-			double minCost=0,maxCost=0,aveCost=0,aveCost_couter=0;
+			//double minCost=0,maxCost=0,aveCost=0,aveCost_couter=0;
+			double minCostChange=0;
 			errorLevel=3;
 			vector<	int> generatedPointsLocation(5,0);
 			vector<int> newPoint(5,0);
@@ -1967,6 +1970,9 @@ vector<int>  fixturemodule::DNSAExecution(vector<arrayLocation> *extremePoints,v
 			localizationCost=0;
 			detachmentScore=0;
 			locatorsReactions=0;
+			double pointsSpreed;
+
+
 			if(c==1)
 			{
 				for (int i = 0; i < obj_ave.size(); i++)
@@ -1978,10 +1984,39 @@ vector<int>  fixturemodule::DNSAExecution(vector<arrayLocation> *extremePoints,v
 				}
 				UpdateResultSummary("Main optimization phase started");
 			}
+
+
+			vector<string> meansRecord(5);
+			vector<string> meansRecord_300(5);
+			vector<string> iterationsRecord(5);
+			vector<string> zscoreRecords(6);
+			vector<string> subCostsRecords(6);
+			vector<string> zscoreRecords_300(6);
+			string metroplisCreterian;
+			string metroplisCreterian_300;
+			string metroplisCreterian2;
+			string metroplisCreterian2_300;
+			string costRecord;
+			string costRecord_300;
+			string acceptedCost;
+			vector<string> OptimumZscore(6);
+			vector<string> OptimumCosts(6);
+			string sizeOfGuideGroup;
+			int maximumIterations=1000000;
+			int iterationsCounter=0;
+
+
+
+			sizeOfRandomPhase=(iterations*epochs)*precentageOfRandomSize;
 			for(int d=0;d<iterations;d++)
 			{
 				for(int f=0;f<epochs;f++)
 				{
+					if(iterationsCounter==maximumIterations)
+					{
+						goto terminateSA;
+					}
+					iterationsCounter+=1;
 					errorLevel="d1";
 					//accelerate at callibration phase
 					if(c==0)
@@ -1994,60 +2029,71 @@ vector<int>  fixturemodule::DNSAExecution(vector<arrayLocation> *extremePoints,v
 					}
 generateNew:
 					localizationCost=0; detachmentScore=0; locatorsReactions=0;limdas_spreed=0;
-					double k_cooling=-log(T_min/T_max)/((double)iterations-1);
-					double			k=pow(e,-(k_cooling*(double)d));
+					double k_cooling=log10(T_max/T_min)/((double)iterations*(1-(precentageOfRandomSize/(double)epochs))-1);
+					double			k=pow(e,-(k_cooling*((double)(d-((double)iterations*precentageOfRandomSize)))));
 					errorLevel="d2";
-					for (int i=0;i<newPoint.size();i++)
-					{
-						newPoint[i]=	cal.newPointGenerator(k,(int)pointMeanPointer[i],selectionDomain.size());
-						errorLevel="d3";
-re1:		;
-						//constrin
-						/*if(c==1)
-						{
-							if((i==0 ||i==1)&& !(selectionDomain[newPoint[i]].a<nodesNumber_H-3 && selectionDomain[newPoint[i]].b==0))
-							{newPoint[i]=(int)cal.randMToN(0,selectionDomain.size()-1);
-							goto re1;
-							}else if((i==2)&& !(selectionDomain[newPoint[i]].b<nodesNumber_V-3 && selectionDomain[newPoint[i]].a==0))
-							{newPoint[i]=(int)cal.randMToN(0,selectionDomain.size()-1);
-							goto re1;
-							}else if((i==3)&& !(selectionDomain[newPoint[i]].b<nodesNumber_V-3 && selectionDomain[newPoint[i]].a==nodesNumber_H-1))
-							{newPoint[i]=(int)cal.randMToN(0,selectionDomain.size()-1);
-							goto re1;
-							}else if((i==4)&& !(selectionDomain[newPoint[i]].a<nodesNumber_H-3 && selectionDomain[newPoint[i]].b==nodesNumber_V-1))
-							{newPoint[i]=(int)cal.randMToN(0,selectionDomain.size()-1);
-							goto re1;
-							}
-							errorLevel="d4";
-						}*/
-					}
+					//if(f==0){	UpdateResultSummary("k="+to_string(k));}
 					bool isRandomPhase;
-					if((d*epochs+f)<sizeOfRandomPhase && optimumPointsSetMap[0].size()<subGroupSize)
+					if((d*epochs+f)<sizeOfRandomPhase )
 					{
-						for (int i=0;i<newPoint.size();i++)
+						for (int i=0;i<5;i++)
 						{
 re:
-							generatedPointsLocation[i]=(int)cal.randMToN(0,selectionDomain.size()-1);
-							isRandomPhase=true;
-							/*if(c==1)
+
+							if(i==0 )
 							{
-								if((i==0 ||i==1)&& !(selectionDomain[generatedPointsLocation[i]].a<nodesNumber_H-3 && selectionDomain[generatedPointsLocation[i]].b==0))
-								{generatedPointsLocation[i]=(int)cal.randMToN(0,selectionDomain.size()-1);
-								goto re;
-								}else if((i==2)&& !(selectionDomain[generatedPointsLocation[i]].b<nodesNumber_V-3 && selectionDomain[generatedPointsLocation[i]].a==0))
-								{newPoint[i]=(int)cal.randMToN(0,selectionDomain.size()-1);
-								goto re;
-								}else if((i==3)&& !(selectionDomain[generatedPointsLocation[i]].b<nodesNumber_V-3 && selectionDomain[generatedPointsLocation[i]].a==nodesNumber_H-1))
-								{generatedPointsLocation[i]=(int)cal.randMToN(0,selectionDomain.size()-1);
-								goto re;
-								}else if((i==4)&& !(selectionDomain[generatedPointsLocation[i]].a<nodesNumber_H-3 && selectionDomain[generatedPointsLocation[i]].b==nodesNumber_V-1))
-								{generatedPointsLocation[i]=(int)cal.randMToN(0,selectionDomain.size()-1);
-								goto re;
-								}
+								generatedPointsLocation[i]=(int)cal.randMToN(0,(double)domainSize-0.001);
+
+							}else
+							{
+								generatedPointsLocation[i]=((int)generatedPointsLocation[i-1]+(int)((double)domainSize/cal.randMToN(2,3)))%(domainSize);
+							}
+							isRandomPhase=true;
+							/*generatedPointsLocation[i]=(int)cal.randMToN(0,(double)domainSize-0.001);
+							if(c==1)
+							{
+							if((i==0 ||i==1)&& !(selectionDomain[generatedPointsLocation[i]].a<nodesNumber_H-3 && selectionDomain[generatedPointsLocation[i]].b==0))
+							{
+							goto re;
+							}else if((i==2)&& !(selectionDomain[generatedPointsLocation[i]].b<nodesNumber_V-3 && selectionDomain[generatedPointsLocation[i]].a==0))
+							{
+							goto re;
+							}else if((i==3)&& !(selectionDomain[generatedPointsLocation[i]].b<nodesNumber_V-3 && selectionDomain[generatedPointsLocation[i]].a==nodesNumber_H-1))
+							{
+							goto re;
+							}else if((i==4)&& !(selectionDomain[generatedPointsLocation[i]].a<nodesNumber_H-3 && selectionDomain[generatedPointsLocation[i]].b==nodesNumber_V-1))
+							{
+							goto re;
+							}
 							}*/
 						}
 					}else
 					{
+						//Declined PDF phase
+						for (int i=0;i<5;i++)
+						{
+							newPoint[i]=	cal.newPointGenerator(k,(int)pointMeanPointer[i],domainSize-1);
+							errorLevel="d3";
+re1:		;
+							//constrin
+							/*if(c==1)
+							{
+							if((i==0 ||i==1)&& !(selectionDomain[newPoint[i]].a<nodesNumber_H-3 && selectionDomain[newPoint[i]].b==0))
+							{newPoint[i]=(int)cal.randMToN(0,domainSize-1);
+							goto re1;
+							}else if((i==2)&& !(selectionDomain[newPoint[i]].b<nodesNumber_V-3 && selectionDomain[newPoint[i]].a==0))
+							{newPoint[i]=(int)cal.randMToN(0,domainSize-1);
+							goto re1;
+							}else if((i==3)&& !(selectionDomain[newPoint[i]].b<nodesNumber_V-3 && selectionDomain[newPoint[i]].a==nodesNumber_H-1))
+							{newPoint[i]=(int)cal.randMToN(0,domainSize-1);
+							goto re1;
+							}else if((i==4)&& !(selectionDomain[newPoint[i]].a<nodesNumber_H-3 && selectionDomain[newPoint[i]].b==nodesNumber_V-1))
+							{newPoint[i]=(int)cal.randMToN(0,domainSize-1);
+							goto re1;
+							}
+							errorLevel="d4";
+							}*/
+						}
 						for (int i=0;i<newPoint.size();i++)
 						{
 							generatedPointsLocation[i]=newPoint[i];
@@ -2058,9 +2104,9 @@ re:
 					double neuralNetworkoutput;
 					//identical values check
 					bool checkDublication=false;
-					for(int i=0;i<   newPoint.size();i++)
+					for(int i=0;i<  5;i++)
 					{
-						for(int j=i+1;j<  newPoint.size();j++)
+						for(int j=i+1;j<  5;j++)
 						{
 							if(generatedPointsLocation[i]==generatedPointsLocation[j])
 							{
@@ -2070,17 +2116,21 @@ re:
 					}
 					if(checkDublication)
 					{
+						f-=1;
 						continue;
 					}
 					bool checkOutSideRange=false;
 					for(int i=0;i<  newPoint.size();i++)
 					{
-						if(generatedPointsLocation[i]<0 &&generatedPointsLocation[i]>=pointsCloud2_sub.size())
+						if(generatedPointsLocation[i]<0 || generatedPointsLocation[i]>=domainSize)
 						{
 							checkOutSideRange=true;
 							UpdateResultSummary("Fatal error: Generated point outside the range of the selection domain, #iteration="+to_string(d)+" #epoch="+to_string(f));
 							UpdateResultSummary("generated point index: "+to_string(generatedPointsLocation[i]));
-							UpdateResultSummary("points Mean index"+cal.matrixToOneLine( pointMeanPointer,5));
+							UpdateResultSummary("generated point for fixel: "+to_string(i));
+							UpdateResultSummary("constant k: "+to_string(k));
+							UpdateResultSummary("domain size: "+to_string(domainSize));
+							UpdateResultSummary("points Mean index"+cal.matrixToOneLine( pointMeanPointer));
 							for (int i = 0; i < optimumPointsSetMap[0].size(); i++)
 							{
 								string pointsIndexes="";
@@ -2091,15 +2141,31 @@ re:
 								UpdateResultSummary("Container layout "+to_string(i)+" indexes->"+pointsIndexes);
 								UpdateResultSummary("Container layout "+to_string(i)+" fittness="+cal.doubleToString( costReciprocalOfOptimum[i]));
 							}
+							if(isRandomPhase)
+							{
+								UpdateResultSummary("At random phase");
+							}else
+							{
+								UpdateResultSummary("At declinig phase");
+							}
 							DeleteAllPoints(pointsCloud2_sub);
 							return optimumPointsLocation;
 						}
 					}
 					if(checkOutSideRange)
 					{
+						f-=1;
 						continue;
 					}
-					if(c==1 && showSimulation  && (d*epochs+f)%((int)((iterations*epochs)/30)+1)==0)
+
+					vector<	double> zScore(6);
+					errorLevel="x2.1 d="+to_string(d)+"  f="+to_string(f)+" c="+to_string(c);
+					if(	costCalculation(&pathPointsUnitNorm_x_subSet,&pathPointsUnitNorm_y_subSet,generatedPointsLocation,extremePoints,&selectionDomain,curveture_subSet,weights_x,weights_y)==0)
+					{
+						f-=1;
+						continue;
+					}
+					if(c==1 && showSimulation  && (d*epochs+f)%(70)==0)
 					{
 						for(int i=0;i<  newPoint.size();i++)
 						{
@@ -2108,16 +2174,17 @@ re:
 								highlightObj(pointsCloud2_sub[currentHighlightedGroup[i]],false);
 								highlightObj(pointsCloud2_sub[generatedPointsLocation[i]],true);
 								currentHighlightedGroup[i]=generatedPointsLocation[i];
+								UF_initialize();
+								UF_MODL_update();
+								UF_DISP_refresh();
+								UF_terminate();
 							}
 						}
 					}
-					vector<	double> zScore(5);
-					errorLevel="x2.1 d="+to_string(d)+"  f="+to_string(f)+" c="+to_string(c);
-					costCalculation(&pathPointsUnitNorm_x_subSet,&pathPointsUnitNorm_y_subSet,generatedPointsLocation,extremePoints,&selectionDomain,curveture_subSet,weights_x,weights_y);
 					if(((d*epochs)+f)%(int)((iterations*epochs)/100)==0 && c==1)
 					{
 						optimizationProgress=((double)((d*epochs)+f+1)/(double)(iterations*epochs))*100;
-						UpdateProgressBar("Optimization progress "+to_string((int)optimizationProgress)+"%");
+						UpdateProgressBar("Optimization progress "+to_string((int)optimizationProgress)+"% ,i="+to_string(d));
 					}else if(((d*epochs)+f)%(int)((iterations*epochs)/100)==0 && c==0)
 					{
 						optimizationProgress=((double)((d*epochs)+f+1)/(double)(iterations*epochs))*100;
@@ -2125,9 +2192,24 @@ re:
 					}
 					if(localizationCost==0.0)
 					{
+						f-=1;
 						continue;
 					}
 					errorLevel="x2.1.a ";
+					//contact points spreedness
+					vector<double> fixlesDist;
+					pointsSpreed=0;
+					for(int i=0;i<   5;i++)
+					{
+						for(int j=i+1;j<  5;j++)
+						{
+							double distd=abs((double)generatedPointsLocation[i]-(double)generatedPointsLocation[j]);
+							distd=min(distd,(double)domainSize-distd);
+							pointsSpreed+=(((double)domainSize/distd)*((double)domainSize/distd))/100;
+							//fixlesDist.push_back((double)generatedPointsLocation[i]-(double)generatedPointsLocation[j]);
+						}
+					}
+					//pointsSpreed=	1/cal.standardDeviation(fixlesDist);
 					///////////////////////////////////////////////////////////////////////////////
 					//prepare other attributes for ANN
 					if(k_obj[2]==0.0)
@@ -2142,7 +2224,7 @@ re:
 						{
 							deflectionArms.push_back(computeDefelectionArm(generatedPointsLocation,&selectionDomain,i));
 						}
-						errorLevel="x2.1.c   israndomphase=" +to_string( isRandomPhase)+" "+ cal.matrixToString(generatedPointsLocation)+" e"+cal.matrixToString(pointMeanPointer,5);
+						errorLevel="x2.1.c   israndomphase=" +to_string( isRandomPhase)+" "+ cal.matrixToString(generatedPointsLocation)+" e"+cal.matrixToString(pointMeanPointer);
 						deflictionScore( generatedPointsLocation);
 						vector<	vector<double>> input;
 						input=	annInputs(generatedPointsLocation,pointsInOuterEdge);
@@ -2150,48 +2232,119 @@ re:
 						neuralNetworkoutput=0;
 						for (int i = 0; i < input.size(); i++)
 						{
-							double exposureFriction=machiningForcesTabular_orginal[i][6]/machiningForces_totalExposureScore;
 							vector<		vector<double>> inputx(1);
 							inputx[0]=input[i]; 
-							neuralNetworkoutput+=exposureFriction*annOutput2(&inputx);
+							//Avoid minius values of neural network output by adding a threshold
+							neuralNetworkoutput+=exposureFriction[i]*annOutput2(&inputx)+pow(10,-6);
 						}
 						if(neuralNetworkoutput!=neuralNetworkoutput)
 						{
 							UpdateResultSummary("Fatal error: undetermined neural network output");
 							DeleteAllPoints(pointsCloud2_sub);
-							return optimumPointsLocation;
+							continue;
+							//return optimumPointsLocation;
 						}
-						//Avoid minius values of neural network output
-						neuralNetworkoutput=neuralNetworkoutput+pow(10,-11);
+
 					}
 					////////////////////////////////////////////////////////////////////////////////////////////////////////
 					errorLevel="x2.1.c   4";
-					zScore[0]=(localizationCost)/obj_dev[0];
+					/*zScore[0]=(localizationCost)/obj_dev[0];
 					zScore[1]=(detachmentScore+1)/obj_dev[1];
 					zScore[2]=(neuralNetworkoutput)/obj_dev[2];
 					zScore[3]=(locatorsReactions+1)/obj_dev[3];
 					zScore[4]=(limdas_spreed)/obj_dev[4];
+					*/
+					zScore[0]=(localizationCost-obj_ave[0])/obj_dev[0];
+					zScore[1]=(detachmentScore-obj_ave[1])/obj_dev[1];
+					if(k_obj[2]==0.0)
+					{	zScore[2]=1;}else
+					{
+						zScore[2]=(neuralNetworkoutput-obj_ave[2])/obj_dev[2];
+					}
+					zScore[3]=(locatorsReactions-obj_ave[3])/obj_dev[3];
+					zScore[4]=(limdas_spreed-obj_ave[4])/obj_dev[4];
+					zScore[5]= (pointsSpreed-obj_ave[5])/obj_dev[5];
+					//check high zscore
+					bool highZscoreFound=false;
+					if(c==1)
+					{
+						for (int i = 0; i < zScore.size(); i++)
+						{
+							if(zScore[i]>highZscoreTrigger)
+							{
+								highZscoreFound=true;
+							}
+						}
+					}
+					if(highZscoreFound)
+					{
+						f+=1;
+						continue;
+					}
+					if(c==1){
+						for (int i = 0; i < 6; i++)
+						{
+							zscoreRecords[i]+=to_string(zScore[i])+"\n";
+							if(f==0)
+							{
+								zscoreRecords_300[i]+=to_string(zScore[i])+"\n";
+							}
+						}
+						subCostsRecords[0]+=cal.doubleToString(localizationCost)+"\n";
+						subCostsRecords[1]+=cal.doubleToString(detachmentScore)+"\n";
+						subCostsRecords[2]+=cal.doubleToString(neuralNetworkoutput)+"\n";
+						subCostsRecords[3]+=cal.doubleToString(locatorsReactions)+"\n";
+						subCostsRecords[4]+=cal.doubleToString(limdas_spreed)+"\n";
+						subCostsRecords[5]+=cal.doubleToString(pointsSpreed)+"\n";
+					}
+
 					for (int i = 0; i < zScore.size(); i++)
 					{
 						if(zScore[i]!=zScore[i])
 						{
 							UpdateResultSummary("Fatal error: Undeterninenet zscore value at i="+to_string(i+1));
 						}
-						if(zScore[i]<0.0)
+						/*if(zScore[i]<0.0)
 						{
-							UpdateResultSummary("Fatal error: Negative objective"+to_string(i+1)+" value ="+cal.doubleToString(zScore[i]));
+						UpdateResultSummary("Fatal error: Negative objective"+to_string(i+1)+" value ="+cal.doubleToString(zScore[i]));
 						}else if(zScore[i]==0.0)
 						{
-							UpdateResultSummary("Fatal error: Zero objective"+to_string(i+1)+" value ="+cal.doubleToString(zScore[i]));
-						}
+						UpdateResultSummary("Fatal error: Zero objective"+to_string(i+1)+" value ="+cal.doubleToString(zScore[i]));
+						}*/
 					}
 					if(c==1)
 					{		
-						layoutCost=pow(zScore[0],k_obj[0])*pow( zScore[1],k_obj[1])*pow(zScore[2],k_obj[2])*pow( zScore[3],k_obj[3])*pow( zScore[4],k_obj[4]);
+
+						//layoutCost=1;
+						//for (int i = 0; i < zScore.size(); i++)
+						//{
+						//	//layoutCost+=zScore[i]*k_obj[i];
+						//	layoutCost*=pow(e,(zScore[i]*k_obj[i]));
+
+						//}
+						layoutCost=0;
+						for (int i = 0; i < zScore.size(); i++)
+						{
+							//layoutCost+=zScore[i]*k_obj[i];
+							layoutCost+=pow(pow(e,zScore[i])*k_obj[i],2);
+						}
+						layoutCost=sqrt(layoutCost);
+						if(f==0)
+						{
+							costRecord_300+=cal.doubleToString(layoutCost)+"\n";
+						}
+						costRecord+=cal.doubleToString(layoutCost)+"\n";
 					}else
-					{		
-						layoutCost=zScore[0]*zScore[1]*zScore[2]*zScore[3]*zScore[4];
+					{	
+						/*for (int i = 0; i < 5; i++)
+						{
+						UpdateResultSummary("zscore "+to_string(i)+":"+ cal.doubleToString(zScore[i]));
+						}*/
+						layoutCost=pow(zScore[0],k_obj[0])*pow( zScore[1]+1,k_obj[1])*pow(zScore[2],k_obj[2])*pow( zScore[3]+1,k_obj[3])*pow( zScore[4]+1,k_obj[4])*pow( zScore[5]+1,k_obj[5]);
+						//layoutCost=zScore[0]*zScore[1]*zScore[2]*zScore[3]*zScore[4];
+
 					}
+					//UpdateResultSummary(to_string( d));
 					//calibration data
 					if(c==0)
 					{
@@ -2205,92 +2358,271 @@ re:
 					errorLevel="x2.1.4";
 					if(costChange!=0 )
 					{
-						if(minCost==0 || minCost>costChange)
+						if(minCostChange==0 || minCostChange>costChange)
 						{
-							minCost=costChange;
+							minCostChange=costChange;
 						}
-						if(maxCost<costChange)
+						/*if(maxCost<costChange)
 						{
-							maxCost=costChange;
+						maxCost=costChange;
 						}
 						aveCost=((aveCost*aveCost_couter )+costChange)/(aveCost_couter+1) ;
-						aveCost_couter+=1;
+						aveCost_couter+=1;*/
 						errorLevel="x2.1.5";
 					}
-					bool newMemberToSubGroup=false;
+					bool newacceptedCandidate=false;
 					if( minimumCost>layoutCost ||minimumCost==0)
 					{
+						if(c==1){
+							metroplisCreterian2+=to_string(1)+"\n";
+							if(f==0)
+							{
+								metroplisCreterian2_300+=to_string(1)+"\n";
+							}
+							iterationsRecord[0]+=to_string(d)+"\n";
+							for (int i = 0; i < 6; i++)
+							{
+								OptimumZscore[i]=cal.doubleToString( zScore[i]);
+							}
+							OptimumCosts[0]=cal.doubleToString(localizationCost);
+							OptimumCosts[1]=cal.doubleToString(detachmentScore);
+							OptimumCosts[2]=cal.doubleToString(neuralNetworkoutput);
+							OptimumCosts[3]=cal.doubleToString(locatorsReactions);
+							OptimumCosts[4]=cal.doubleToString(limdas_spreed);
+							OptimumCosts[5]=cal.doubleToString(pointsSpreed);
+						}
 						errorLevel="x4.n";
 						//تحديث الموقع الامثل
 						minimumCost=layoutCost; 
-						for(int i=0;i<  newPoint.size();i++)
+						for(int i=0;i<  5;i++)
 						{
 							optimumPointsLocation[i]=generatedPointsLocation[i];
 						}
+						limda1_optimum.clear();limda2_optimum.clear();limda3_optimum.clear();
+						for (int i = 0; i < limda1.size(); i++)
+						{
+							limda1_optimum.push_back(limda1[i]);
+							limda2_optimum.push_back(limda2[i]);
+							limda3_optimum.push_back(limda3[i]);
+						}
 						errorLevel="x4.n1";
-						for(int i=0;i<  newPoint.size();i++)
+						for(int i=0;i<  5;i++)
 						{
 							errorLevel="x4.n2 i="+to_string(  i);
 							optimumPointsSetMap[i].push_back(generatedPointsLocation[i]);
 						}
 						errorLevel="x4.n2.1";
 						costReciprocalOfOptimum.push_back(1/layoutCost);
-						newMemberToSubGroup=true;
+						newacceptedCandidate=true;
 						errorLevel="x5";
 					}else
 					{				
 						errorLevel="x4.m";
-						criterian=cal.newMetrapolisCriterian(iterations,d,costChange,minCost,0,T_min,T_max);
+						criterian=cal.newMetrapolisCriterian(iterations,d,costChange,minCostChange,0,T_min,T_max);
+						
+						if(c==1){
+							metroplisCreterian+=to_string(criterian)+"\n";
+							iterationsRecord[1]+=to_string(d)+"\n";
+							metroplisCreterian2+=to_string(criterian)+"\n";
+							if(f==0)
+							{
+								iterationsRecord[2]+=to_string(d)+"\n";
+								metroplisCreterian_300+=to_string(criterian)+"\n";
+								metroplisCreterian2_300+=to_string(criterian)+"\n";
+							}
+						}
 						condition=	criterian>cal.randomInRange(0,1); 
 						if(condition)
 						{
-							for(int i=0;i<  newPoint.size();i++)
+							for(int i=0;i<  5;i++)
 							{
 								optimumPointsSetMap[i].push_back(generatedPointsLocation[i]);
 							}
 							costReciprocalOfOptimum.push_back(1/layoutCost);
-							newMemberToSubGroup=true;
+							newacceptedCandidate=true;
 						}
 					}
+
 					errorLevel="x4.o";
-					//keep optimum partation set size less than constant
-					if(				newMemberToSubGroup==true)
-					{
-						////////////////////////////////
-						string pointsIndexes="";
-						for (int j = 0; j < 5; j++)
+					if(c==1){
+						for (int i = 0; i < 5; i++)
 						{
-							pointsIndexes+=to_string(generatedPointsLocation[j])+" , ";
+							meansRecord[i]+=to_string(pointMeanPointer[i])+"\n";
+							if(f==0)
+							{
+								meansRecord_300[i]+=to_string( pointMeanPointer[i])+"\n";
+							}
 						}
-						///////////////////////////////
+
+					}
+
+
+					if(newacceptedCandidate)
+					{
+						if(c==1)
+						{
+							acceptedCost+=to_string(layoutCost)+"\n";
+							iterationsRecord[3]+=to_string(d)+"\n";
+						}
+
+
+
+						errorLevel="x4.k"+to_string(d);
+
+
+						//erase elements outside the range of candidate selection pool
+						if(costReciprocalOfOptimum.size()>1)
+						{
+							//messageInfo(cal.matrixToOneLine(costReciprocalOfOptimum));
+							if(!isRandomPhase && f%3==0)
+							{
+								double currentRangeSize=2*(6+k*((((double)domainSize-1)/2)-6));
+
+								for (int ii = 0; ii < costReciprocalOfOptimum.size(); ii++)
+								{
+									for (int jj = 0; jj < 5; jj++)
+									{
+										if( (double)optimumPointsSetMap[jj][ii]>= (pointMeanPointer[jj]+(currentRangeSize/2)) || (double)optimumPointsSetMap[jj][ii]<= (pointMeanPointer[jj]-(currentRangeSize/2)))
+										{
+											/*UpdateResultSummary(to_string(currentRangeSize));
+											UpdateResultSummary("d="+to_string(d)+", f="+to_string(f));
+											UpdateResultSummary("delete out side range");*/
+											for(int gg=0;gg<  5;gg++)
+											{
+												optimumPointsSetMap[gg].erase(optimumPointsSetMap[gg].begin()+ii);
+											}
+											costReciprocalOfOptimum.erase(costReciprocalOfOptimum.begin()+ii);
+											break;
+										}
+									}
+								}
+							}
+						}
+
+
+
+
+
+						//delete the worst element in the group or the oldest
 						if(optimumPointsSetMap[0].size()>subGroupSize)
-						{	
-							for(int i=0;i<  newPoint.size();i++)
+						{	if(f%2==0)
+						{
+							//get the index of the worst element in the group
+							int worstElementIndex = std::min_element(costReciprocalOfOptimum.begin(),costReciprocalOfOptimum.end()) - costReciprocalOfOptimum.begin();
+							//UpdateResultSummary("delete worst element");
+							for(int i=0;i<  5;i++)
+							{
+								optimumPointsSetMap[i].erase(optimumPointsSetMap[i].begin()+worstElementIndex);
+							}
+							costReciprocalOfOptimum.erase(costReciprocalOfOptimum.begin()+worstElementIndex);
+						}else
+						{
+							for(int i=0;i<  5;i++)
 							{
 								optimumPointsSetMap[i].erase(optimumPointsSetMap[i].begin());
 							}
 							costReciprocalOfOptimum.erase(costReciprocalOfOptimum.begin());
 						}
-						errorLevel="x4.k"+to_string(d);
-						//changing the mean
-						vector<double> sum(newPoint.size(),0.0); 
-						double sumx=0.0;
-						for(int i=0;i<optimumPointsSetMap[0].size();i++)
-						{
-							//Fittness value
-							for(int s=0;s<  newPoint.size();s++)
-							{
-								sum[s]+=(optimumPointsSetMap[s][i]*costReciprocalOfOptimum[i]);
-							}
-							sumx+=costReciprocalOfOptimum[i];
-						}				
-						for(int s=0;s<  newPoint.size();s++)
-						{
-							pointMeanPointer[s]=(sum[s]/sumx); 
 						}
+
+
+
+
+						sizeOfGuideGroup+=to_string(costReciprocalOfOptimum.size())+"\n";
+
+						//changing the mean
+						if(costReciprocalOfOptimum.size()>0)
+						{
+							//method 1 and 2 (simulatenous calculation)
+
+							vector<double> sum(newPoint.size(),0.0); 
+							double sumx=0.0;
+							vector<double> pointMeanPointer_method2(5,0);
+							vector<double> sum2(newPoint.size(),0.0); 
+
+							for(int i=0;i<optimumPointsSetMap[0].size();i++)
+							{
+								//Fittness value
+								for(int s=0;s<  5;s++)
+								{
+									sum[s]+=(optimumPointsSetMap[s][i]*costReciprocalOfOptimum[i]);
+									sum2[s]+=cal.halfRangeShifting(optimumPointsSetMap[s][i],domainSize-1)*costReciprocalOfOptimum[i];
+								}
+								sumx+=costReciprocalOfOptimum[i];
+
+
+							}	
+							for(int s=0;s<  5;s++)
+							{
+								pointMeanPointer[s]=(sum[s]/sumx); 
+								pointMeanPointer_method2[s]=cal.halfRangeShifting_back(sum2[s]/sumx,domainSize-1);
+
+							}
+
+
+
+							//decide which method to use based on the closest distance
+							vector<double> dist1(5,0),dist2(5,0);
+							for (int i=0;i<optimumPointsSetMap[0].size();i++)
+							{
+								for(int s=0;s<  5;s++)
+								{
+									dist1[s]+=abs(pointMeanPointer[s]-(double)optimumPointsSetMap[s][i])*costReciprocalOfOptimum[i];
+									dist2[s]+=abs(cal.halfRangeShifting(pointMeanPointer_method2[s],domainSize-1)-cal.halfRangeShifting(optimumPointsSetMap[s][i],domainSize-1))*costReciprocalOfOptimum[i];
+									//make decision when reaching the last point
+									if(i==(optimumPointsSetMap[0].size()-1) && dist2[s]<dist1[s])
+									{
+										pointMeanPointer[s]=pointMeanPointer_method2[s];
+									}
+
+								}
+							}
+
+
+
+
+
+
+
+						}
+
 					}
 				}
 				errorLevel="x4.l"+to_string(d);
+			}
+			if(c==1){
+				for (int i = 0; i < 5; i++)
+				{
+					saveStringToFile(&meansRecord[i],"meansRecord"+to_string(i));
+					saveStringToFile(&meansRecord_300[i],"meansRecord_300 "+to_string(i));
+					saveStringToFile(&iterationsRecord[i],"iterationsRecord"+to_string(i));
+				}
+				for (int i = 0; i < 6; i++)
+				{
+					saveStringToFile(&zscoreRecords[i],"zscoreRecords"+to_string(i));
+					saveStringToFile(&zscoreRecords_300[i],"zscoreRecords_300 "+to_string(i));
+					saveStringToFile(&subCostsRecords[i],"subCostsRecords"+to_string(i));
+				}
+				saveStringToFile(&sizeOfGuideGroup,"sizeOfGuideGroup");
+				saveStringToFile(&costRecord,"costRecord");
+				saveStringToFile(&costRecord_300,"costRecord_300");
+				saveStringToFile(&acceptedCost,"acceptedCost");
+				saveStringToFile(&metroplisCreterian,"metroplisCreterian");
+				saveStringToFile(&metroplisCreterian_300,"metroplisCreterian_300");
+				saveStringToFile(&metroplisCreterian2,"metroplisCreterian2");
+				saveStringToFile(&metroplisCreterian2_300,"metroplisCreterian2_300");
+
+				UpdateResultSummary("Limda 1 at each load point:");
+				UpdateResultSummary(cal.matrixToOneLine(limda1_optimum));
+				UpdateResultSummary("Limda 2 at each load point:");
+				UpdateResultSummary(cal.matrixToOneLine(limda2_optimum));
+				UpdateResultSummary("Limda 3 at each load point:");
+				UpdateResultSummary(cal.matrixToOneLine(limda3_optimum));
+				UpdateResultSummary("OptimumCosts:");
+				UpdateResultSummary(cal.matrixToOneLine(OptimumCosts));
+				UpdateResultSummary("OptimumZscore:");
+				UpdateResultSummary(cal.matrixToOneLine(OptimumZscore));
+				UpdateResultSummary("Indexes of final mean: "+cal.matrixToOneLine(pointMeanPointer));
 			}
 terminateSA:
 			UpdateProgressBar("Optimization finished ");
@@ -2308,11 +2640,8 @@ void fixturemodule::discretizationUnit(int** &integerOfPointsCloud,vector<	vecto
 	faceToPointsCloud(integerOfPointsCloud); 
 	int** testCloud;
 	copy(testCloud, integerOfPointsCloud);
-	UpdateProgressBar("Isolate boundaries");
+	UpdateProgressBar("Extract edges");
 	isolateBorder(testCloud);
-	UpdateProgressBar("");
-	UpdateProgressBar("");
-	UpdateProgressBar("Categorize boundaries");
 	getBorderPaths(testCloud,outputPath);
 	UpdateResultSummary("Number of closed loop paths : "+to_string(outputPath.size()));	
 	///////////////////////////////////////////////////////////////////////////////////////////
@@ -2320,7 +2649,6 @@ void fixturemodule::discretizationUnit(int** &integerOfPointsCloud,vector<	vecto
 	getExtremePoints(outputPath[0],*extremePoints,*weights_x,*weights_y);
 	numberOfextremePointsOfOuterPath=(*extremePoints).size();
 	//maximum distance between two extrem points
-	maxBoundedDistance = boundaryDiagonal;
 	if(!extremPointsAtOuterBoundary)
 	{
 		(*extremePoints).clear();
@@ -2373,19 +2701,30 @@ bool fixturemodule::mathmaticalAttributesUnit(int** &integerOfPointsCloud,vector
 		}
 		UpdateProgressBar("Compute mathmatical attributes: Dervatives");
 		errorLevel="2";
-		cal.thetaProportionalSmooth(curveture,alpha);
+		cal.SmoothByBin(curveture,10);
 		errorLevel="3";
-		vector <double>firstDervative2_rounded;
-		vector <double>secondDervative2_rounded;
-		cal.thetaProportionalSmooth(firstDervative,alpha);
+		//vector <double>firstDervative2_rounded;
+		//vector <double>secondDervative2_rounded;
+		vector <double>curveture2_rounded;
+		cal.SmoothByBin(firstDervative,2);
+		cal.SmoothByBin(secondDervative,2);
+
 		errorLevel="4";
 		for(int i=0;i<curveture.size();i++)
 		{
-			firstDervative2_rounded.push_back( (double)((int)(100*firstDervative[i]))/100);
+			//firstDervative2_rounded.push_back( (double)((int)(100*firstDervative[i]))/100);
+			//secondDervative2_rounded.push_back( (double)((int)(100*secondDervative[i]))/100);
+			curveture2_rounded.push_back( (double)((int)(100*curveture[i]))/100);
 		}
+		saveStringToFile(&cal.matrixToString( curveture2_rounded),"curveture2_rounded");
 		errorLevel="5";
-		double firstDervativeEntropy=cal.enyropy(firstDervative2_rounded);
-		iterations=(1+firstDervativeEntropy*0.3)*iterations;
+		//firstDervativeEntropy=cal.enyropy(firstDervative2_rounded); messageInfo(firstDervativeEntropy);
+		//secondDervativeEntropy=cal.enyropy(secondDervative2_rounded); messageInfo(secondDervativeEntropy);
+		curvatureEntropy=cal.enyropy(curveture2_rounded); //messageInfo(curvatureEntropy);
+		UpdateResultSummary("curvature entropy = "+to_string(curvatureEntropy));
+		iterations=(1+curvatureEntropy*0.4)*iterations;// messageInfo(iterations);
+		UpdateResultSummary("Number of iterations: "+to_string( iterations));
+		UpdateResultSummary("Diagonal: "+to_string( boundaryDiagonal));
 		UpdateProgressBar("Compute mathmatical attributes: Norms");
 		errorLevel="6";
 		pathPointsUnitNorm_x_all.resize(numberOfPaths);
@@ -2400,8 +2739,8 @@ bool fixturemodule::mathmaticalAttributesUnit(int** &integerOfPointsCloud,vector
 			pathPointsUnitNorm_x_all[0].push_back(xx/sqrt((yy*yy)+(xx*xx)));
 		}
 		errorLevel="8";
-		cal.thetaProportionalSmooth(pathPointsUnitNorm_y_all[0],alpha);
-		cal.thetaProportionalSmooth(pathPointsUnitNorm_x_all[0],alpha);
+		cal.SmoothByBin(pathPointsUnitNorm_y_all[0],2);
+		cal.SmoothByBin(pathPointsUnitNorm_x_all[0],2);
 		errorLevel="9";
 		//Normalize the norms
 		for (int i = 0; i < pathPointsUnitNorm_y_all[0].size(); i++)
@@ -2415,6 +2754,7 @@ bool fixturemodule::mathmaticalAttributesUnit(int** &integerOfPointsCloud,vector
 		{
 			conicalBeamAndShearLine(integerOfPointsCloud,&outputPath);
 		}
+		meanDistance=boundaryDiagonal/2;
 		return true;
 	}catch(exception ex)
 	{
@@ -2469,6 +2809,7 @@ bool fixturemodule::extractSelectionDomain(vector <double>&curveture_all,vector 
 			errorLevel="3";
 			//singularity
 			if(abs(curveture_all[i])>thresholdCurvatureValue+ebsilon)
+				//if(false)
 			{
 				errorLevel="4";
 				//dropCounter=beta;

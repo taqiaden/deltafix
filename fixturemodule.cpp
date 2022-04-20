@@ -183,40 +183,36 @@ void fixturemodule::initialize_cb()
 	try
 	{
 		progress = dynamic_cast<NXOpen::BlockStyler::Label*>(theDialog->TopBlock()->FindBlock("progress"));
-		face_select0 = dynamic_cast<NXOpen::BlockStyler::FaceCollector*>(theDialog->TopBlock()->FindBlock("face_select0"));
 		group5 = dynamic_cast<NXOpen::BlockStyler::Group*>(theDialog->TopBlock()->FindBlock("group5"));
 		drawContactPoints_t = dynamic_cast<NXOpen::BlockStyler::Toggle*>(theDialog->TopBlock()->FindBlock("drawContactPoints_t"));
 		showSimulation_t = dynamic_cast<NXOpen::BlockStyler::Toggle*>(theDialog->TopBlock()->FindBlock("showSimulation_t"));
 		resultSummary = dynamic_cast<NXOpen::BlockStyler::MultilineString*>(theDialog->TopBlock()->FindBlock("resultSummary"));
 		run = dynamic_cast<NXOpen::BlockStyler::Button*>(theDialog->TopBlock()->FindBlock("run"));
+		face_select0 = dynamic_cast<NXOpen::BlockStyler::FaceCollector*>(theDialog->TopBlock()->FindBlock("face_select0"));
 		group0 = dynamic_cast<NXOpen::BlockStyler::Group*>(theDialog->TopBlock()->FindBlock("group0"));
 		iterations_i = dynamic_cast<NXOpen::BlockStyler::IntegerBlock*>(theDialog->TopBlock()->FindBlock("iterations_i"));
 		epochs_i = dynamic_cast<NXOpen::BlockStyler::IntegerBlock*>(theDialog->TopBlock()->FindBlock("epochs_i"));
+		singulaityDrop = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("singulaityDrop"));
+		randomPhasePortion = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("randomPhasePortion"));
 		group = dynamic_cast<NXOpen::BlockStyler::Group*>(theDialog->TopBlock()->FindBlock("group"));
 		alpha_d = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("alpha_d"));
 		beta_i = dynamic_cast<NXOpen::BlockStyler::IntegerBlock*>(theDialog->TopBlock()->FindBlock("beta_i"));
 		group1 = dynamic_cast<NXOpen::BlockStyler::Group*>(theDialog->TopBlock()->FindBlock("group1"));
 		useCurvatureCorrection_t = dynamic_cast<NXOpen::BlockStyler::Toggle*>(theDialog->TopBlock()->FindBlock("useCurvatureCorrection_t"));
+		zscoreMaxLimit = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("zscoreMaxLimit"));
+		increseReactions = dynamic_cast<NXOpen::BlockStyler::Toggle*>(theDialog->TopBlock()->FindBlock("increseReactions"));
 		countForFriction_t = dynamic_cast<NXOpen::BlockStyler::Toggle*>(theDialog->TopBlock()->FindBlock("countForFriction_t"));
 		frictionCoeficient_d = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("frictionCoeficient_d"));
-		group2 = dynamic_cast<NXOpen::BlockStyler::Group*>(theDialog->TopBlock()->FindBlock("group2"));
 		drawingArea0 = dynamic_cast<NXOpen::BlockStyler::DrawingArea*>(theDialog->TopBlock()->FindBlock("drawingArea0"));
 		k1_d = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("k1_d"));
 		k2_d = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("k2_d"));
 		k3_d = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("k3_d"));
 		k4_d = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("k4_d"));
 		k5_d = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("k5_d"));
+		k6_d = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("k6_d"));
 		group3 = dynamic_cast<NXOpen::BlockStyler::Group*>(theDialog->TopBlock()->FindBlock("group3"));
 		clampingForce_d = dynamic_cast<NXOpen::BlockStyler::DoubleBlock*>(theDialog->TopBlock()->FindBlock("clampingForce_d"));
 		machinigForcesData = dynamic_cast<NXOpen::BlockStyler::FileSelection*>(theDialog->TopBlock()->FindBlock("machinigForcesData"));
-		group4 = dynamic_cast<NXOpen::BlockStyler::Group*>(theDialog->TopBlock()->FindBlock("group4"));
-		w1_f = dynamic_cast<NXOpen::BlockStyler::FileSelection*>(theDialog->TopBlock()->FindBlock("w1_f"));
-		w2_f = dynamic_cast<NXOpen::BlockStyler::FileSelection*>(theDialog->TopBlock()->FindBlock("w2_f"));
-		b1_f = dynamic_cast<NXOpen::BlockStyler::FileSelection*>(theDialog->TopBlock()->FindBlock("b1_f"));
-		b2_f = dynamic_cast<NXOpen::BlockStyler::FileSelection*>(theDialog->TopBlock()->FindBlock("b2_f"));
-		inputMinAndRange_f = dynamic_cast<NXOpen::BlockStyler::FileSelection*>(theDialog->TopBlock()->FindBlock("inputMinAndRange_f"));
-		outputMinAndRange_f = dynamic_cast<NXOpen::BlockStyler::FileSelection*>(theDialog->TopBlock()->FindBlock("outputMinAndRange_f"));
-		AveDevNormalizationCoeficients_f = dynamic_cast<NXOpen::BlockStyler::FileSelection*>(theDialog->TopBlock()->FindBlock("AveDevNormalizationCoeficients_f"));
 		ValuesInitilization();
 	}
 	catch(exception& ex)
@@ -231,7 +227,7 @@ void fixturemodule::ValuesInitilization()
 	ebsilon=0.000000000000000001;		//Small value to divide by to avoid singularity when denominator equals zero
 	T_min=1; // minimum temperature of DNSA optimizaton algorithm
 	T_max=1000;   // maximum temperature of DNSA optimizaton algorithm     
-	subGroupSize=15;  
+	subGroupSize=10;  
 	autoTerminate=false; 	
 	sizeOfRandomPhase=300;	
 	minimumDiagonalToAlphaRatio=20;
@@ -244,12 +240,13 @@ void fixturemodule::ValuesInitilization()
 	countForFriction=countForFriction_t->Value();
 	frictionCoeficient=frictionCoeficient_d->Value();
 	clampingForce=clampingForce_d->Value(); 
-	k_obj.resize(5);
+	k_obj.resize(6);
 	k_obj[0]=k1_d->Value();
 	k_obj[1]=k2_d->Value();
 	k_obj[2]=k3_d->Value();
 	k_obj[3]=k4_d->Value();
 	k_obj[4]=k5_d->Value();
+	k_obj[5]=k6_d->Value();
 	showSimulation=showSimulation_t->Value();
 	drawContactPoints=drawContactPoints_t->Value();
 	meanDistance=100;
@@ -260,11 +257,14 @@ void fixturemodule::ValuesInitilization()
 	coneAngleInRadian=0.26;    
 	numberOfPairs=4;								//Number of adjecent pairs to use when forward and backward interpolating  for approximating first dervative, second dervative and curvature of a point 
 	extremPointsAtOuterBoundary=true;  
-	dropPercentage=0.20;
+	dropPercentage=singulaityDrop->Value();
+	highZscoreTrigger=zscoreMaxLimit->Value();
+	increaseReactionForce=increseReactions->Value();
 	maximumBetaToPointsSize=0.2;
 	machiningForces_totalExposureScore=0;
 	iszeroCuttingForce.clear();
 	frictionCoeficient_d->SetEnable(countForFriction_t->Value());
+	precentageOfRandomSize=randomPhasePortion->Value();
 }
 //------------------------------------------------------------------------------
 //Callback Name: dialogShown_cb
@@ -324,6 +324,10 @@ int fixturemodule::update_cb(NXOpen::BlockStyler::UIBlock* block)
 			face=		face_select0->GetSelectedObjects()[0]->Tag();
 			UF_SF_face_ask_bounding_box(face,pad_bounding_box);
 			UF_terminate();
+			//recommend an alpha value
+			getTransformedAttributes();
+			UpdateResultSummary("Minimum recommended Alpha parameter = "+to_string(boundaryDiagonal/200));
+			UpdateResultSummary("Maximum recommended Alpha parameter = "+to_string(boundaryDiagonal/150));
 		}
 		else if(block == drawContactPoints_t)
 		{
@@ -353,6 +357,15 @@ int fixturemodule::update_cb(NXOpen::BlockStyler::UIBlock* block)
 		{
 			//---------Enter your code here-----------
 			epochs=epochs_i->Value();
+		}else if(block == singulaityDrop)
+		{
+			//---------Enter your code here-----------
+			dropPercentage=singulaityDrop->Value();
+		}
+		else if(block == randomPhasePortion)
+		{
+			//---------Enter your code here-----------
+			precentageOfRandomSize=randomPhasePortion->Value();
 		}
 		else if(block == alpha_d)
 		{
@@ -368,6 +381,15 @@ int fixturemodule::update_cb(NXOpen::BlockStyler::UIBlock* block)
 		{
 			//---------Enter your code here-----------
 			useCurvetureCorrection=useCurvatureCorrection_t->Value();
+		} else if(block == zscoreMaxLimit)
+		{
+			//---------Enter your code here-----------
+			highZscoreTrigger=zscoreMaxLimit->Value();
+		}
+		else if(block == increseReactions)
+		{
+			//---------Enter your code here-----------
+			increaseReactionForce=increseReactions->Value();
 		}
 		else if(block == countForFriction_t)
 		{
@@ -409,6 +431,11 @@ int fixturemodule::update_cb(NXOpen::BlockStyler::UIBlock* block)
 			//---------Enter your code here-----------
 			k_obj[4]=k5_d->Value();
 		}
+		else if(block == k6_d)
+		{
+			//---------Enter your code here-----------
+			k_obj[5]=k6_d->Value();
+		}
 		else if(block == clampingForce_d)
 		{
 			//---------Enter your code here-----------
@@ -418,34 +445,7 @@ int fixturemodule::update_cb(NXOpen::BlockStyler::UIBlock* block)
 		{
 			//---------Enter your code here-----------
 		}
-		else if(block == w1_f)
-		{
-			//---------Enter your code here-----------
-		}
-		else if(block == w2_f)
-		{
-			//---------Enter your code here-----------
-		}
-		else if(block == b1_f)
-		{
-			//---------Enter your code here-----------
-		}
-		else if(block == b2_f)
-		{
-			//---------Enter your code here-----------
-		}
-		else if(block == inputMinAndRange_f)
-		{
-			//---------Enter your code here-----------
-		}
-		else if(block == outputMinAndRange_f)
-		{
-			//---------Enter your code here-----------
-		}
-		else if(block == AveDevNormalizationCoeficients_f)
-		{
-			//---------Enter your code here-----------
-		}
+
 	}
 	catch(exception& ex)
 	{
@@ -588,9 +588,9 @@ bool fixturemodule::loadANNFiles()
 	b1=	getCSVFileData("\\DeltaFix tool files\\b1.csv");
 	b2=	getCSVFileData("\\DeltaFix tool files\\b2.csv");
 	b3=	getCSVFileData("\\DeltaFix tool files\\b3.csv");
-	inputMinAndRange=	getCSVFileData(inputMinAndRange_f,"\\DeltaFix tool files\\inputMinAndRange.csv");
-	outputMinAndRange=	getCSVFileData(outputMinAndRange_f,"\\DeltaFix tool files\\outputMinAndRange.csv");
-	AveDevNormalizationCoeficients=	getCSVFileData(AveDevNormalizationCoeficients_f,"\\DeltaFix tool files\\AveDevNormalizationCoeficients.csv");
+	inputMinAndRange=	getCSVFileData("\\DeltaFix tool files\\inputMinAndRange.csv");
+	outputMinAndRange=	getCSVFileData("\\DeltaFix tool files\\outputMinAndRange.csv");
+	AveDevNormalizationCoeficients=	getCSVFileData("\\DeltaFix tool files\\AveDevNormalizationCoeficients.csv");
 	machiningForcesTabular_orginal=	getCSVFileData(machinigForcesData,"\\DeltaFix tool files\\quasi-static loads.csv");
 	//Check if files are laoded
 	if(w1.size()==0 ||w2.size()==0||w3.size()==0||b1.size()==0||b2.size()==0||b3.size()==0||inputMinAndRange.size()==0||outputMinAndRange.size()==0||AveDevNormalizationCoeficients.size()==0||machiningForcesTabular_orginal.size()==0)
@@ -601,7 +601,11 @@ bool fixturemodule::loadANNFiles()
 	{
 		for (int i = 0; i < machiningForcesTabular_orginal.size(); i++)
 		{
-			machiningForces_totalExposureScore+=machiningForcesTabular_orginal[i][4];
+			machiningForces_totalExposureScore+=machiningForcesTabular_orginal[i][6];
+		}
+		for (int i = 0; i < machiningForcesTabular_orginal.size(); i++)
+		{
+			exposureFriction.push_back(machiningForcesTabular_orginal[i][6]/machiningForces_totalExposureScore);
 		}
 		return true;
 	}
@@ -635,6 +639,29 @@ std::vector<std::vector<double> >  fixturemodule::getCSVFileData(string defaultP
 }
 void fixturemodule::runDNSA()
 {
+	//vector<	double> x; x.push_back(9);x.push_back(8);x.push_back(177);x.push_back(1);x.push_back(10);
+	//	
+	//							
+	//							x.erase(x.begin());
+	//return;
+	//calculation cc;
+	//
+	//	for (int i = 0; i < 3000; i++)
+	//	{
+	//		int x=cc.newPointGenerator(0.103906,0.835379,112);
+	//		if(x>=112){
+	//			messageInfo(	x);
+	//		}
+	//	}
+
+	//
+
+	////messageInfo(cc.halfRangeShifting(13,13)); //6.5
+
+	//return;
+
+
+
 	UpdateProgressBar("Initilize data");
 	clearVariables();
 	highlightObj(face,false);
@@ -670,15 +697,21 @@ void fixturemodule::runDNSA()
 		{
 			return;
 		}
+		UpdateResultSummary("Size of point set domain: "+to_string( curveture_all.size()));
 		if(!extractSelectionDomain(curveture_all,curveture_subSet,outputPath))
 		{
 			return;
 		}
+		UpdateResultSummary("Size of availabe selection domain: "+to_string( curveture_subSet.size()));
 		if(showSimulation)
 		{
 			UpdateProgressBar("Draw Simulation points");
 			pointsCloud2_sub=drawPoints(selectionDomain);
 		}
+		auto discretizationTime =chrono::steady_clock::now();
+		recordElapsedTime( chrono::duration_cast<chrono::seconds>(discretizationTime - start).count());
+		string temp=elapsedTime.GetText();
+		UpdateResultSummary("Elapsed time = "+ temp);
 		vector<int> optimumPointsLocation=		DNSAExecution(&extremePoints,&curveture_subSet,&weights_x,&weights_y,outputPath[0].size());
 		auto end =chrono::steady_clock::now();
 		recordElapsedTime( chrono::duration_cast<chrono::seconds>(end - start).count());
@@ -687,6 +720,20 @@ void fixturemodule::runDNSA()
 			DeleteAllPoints(pointsCloud2_sub);
 		}
 		showFinalResult(pointsCloud,optimumPointsLocation);	
+
+		saveStringToFile(& cal.matrixToString(cumulativeDistanceToCavity_subSet),"cumulativeDistanceToCavity_subSet");
+		saveStringToFile(& cal.matrixToString(minimumDistanceToCavity_subSet),"minimumDistanceToCavity_subSet");
+		saveStringToFile(& cal.matrixToString(pointsInSmallregion_subSet),"pointsInSmallregion_subSet");
+		saveStringToFile(& cal.matrixToString(pointsInBigRegion_subSet),"pointsInBigRegion_subSet");
+		saveStringToFile(& cal.matrixToString(pathPointsUnitNorm_x_subSet),"pathPointsUnitNorm_x_subSet");
+		saveStringToFile(& cal.matrixToString(pathPointsUnitNorm_y_subSet),"pathPointsUnitNorm_y_subSet");
+		saveStringToFile(& cal.matrixToString(areaMomentOfInertia_x),"areaMomentOfInertia_x");
+		saveStringToFile(& cal.matrixToString(areaMomentOfInertia_y),"areaMomentOfInertia_y");
+		saveStringToFile(& cal.matrixToString(lengthOfShearLine_subSet),"lengthOfShearLine_subSet");
+		saveStringToFile(& cal.matrixToString(pointsInForawrdConicalBeam_subSet),"pointsInForawrdConicalBeam_subSet");
+		saveStringToFile(& cal.matrixToString(curveture_subSet),"curveture_subSet");
+		saveStringToFile(& cal.matrixToString(curveture_all),"curveture_all");
+
 		if(drawContactPoints)
 		{
 			drawPoints(optimumPointsLocation,pointsCloud3_optimum);

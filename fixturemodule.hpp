@@ -163,11 +163,17 @@ public:
 	double limdas_spreed;
 	double localizationCost;
 	double locatorsReactions;
+	vector<double> exposureFriction;
 	double machiningForces_totalExposureScore;
-	double maxBoundedDistance;
 	double maxCrossDistanceOfFixels;
 	double maxInPathDistanceOfFixels;
 	double maximumBetaToPointsSize;
+	double highZscoreTrigger;
+	//double firstDervativeEntropy;
+	//double secondDervativeEntropy;
+	double curvatureEntropy;
+	bool increaseReactionForce;
+	double precentageOfRandomSize;
 	double meanDistance;
 	double minCrossDistanceOfFixels;
 	double minInPathDistanceOfFixels;
@@ -245,6 +251,7 @@ public:
 	vector<double> lengthOfShearLine_all;
 	vector<double> lengthOfShearLine_subSet;
 	vector<double> limda1,limda2,limda3;
+	vector<double> limda1_optimum,limda2_optimum,limda3_optimum;
 	vector<double> pointsInForawrdConicalBeam_F;
 	vector<double> pointsInForawrdConicalBeam_all;
 	vector<double> pointsInForawrdConicalBeam_subSet;
@@ -325,42 +332,38 @@ public:
 
 
 private:
-	const char* theDlxFileName;
-	NXOpen::BlockStyler::BlockDialog* theDialog;
-	NXOpen::BlockStyler::Label* progress;// Block type: Label
-	NXOpen::BlockStyler::FaceCollector* face_select0;// Block type: Face Collector
-	NXOpen::BlockStyler::Group* group5;// Block type: Group
-	NXOpen::BlockStyler::Toggle* drawContactPoints_t;// Block type: Toggle
-	NXOpen::BlockStyler::Toggle* showSimulation_t;// Block type: Toggle
-	NXOpen::BlockStyler::MultilineString* resultSummary;// Block type: Multiline String
-	NXOpen::BlockStyler::Button* run;// Block type: Button
-	NXOpen::BlockStyler::Group* group0;// Block type: Group
-	NXOpen::BlockStyler::IntegerBlock* iterations_i;// Block type: Integer
-	NXOpen::BlockStyler::IntegerBlock* epochs_i;// Block type: Integer
-	NXOpen::BlockStyler::Group* group;// Block type: Group
-	NXOpen::BlockStyler::DoubleBlock* alpha_d;// Block type: Double
-	NXOpen::BlockStyler::IntegerBlock* beta_i;// Block type: Integer
-	NXOpen::BlockStyler::Group* group1;// Block type: Group
-	NXOpen::BlockStyler::Toggle* useCurvatureCorrection_t;// Block type: Toggle
-	NXOpen::BlockStyler::Toggle* countForFriction_t;// Block type: Toggle
-	NXOpen::BlockStyler::DoubleBlock* frictionCoeficient_d;// Block type: Double
-	NXOpen::BlockStyler::Group* group2;// Block type: Group
-	NXOpen::BlockStyler::DrawingArea* drawingArea0;// Block type: Drawing Area
-	NXOpen::BlockStyler::DoubleBlock* k1_d;// Block type: Double
-	NXOpen::BlockStyler::DoubleBlock* k2_d;// Block type: Double
-	NXOpen::BlockStyler::DoubleBlock* k3_d;// Block type: Double
-	NXOpen::BlockStyler::DoubleBlock* k4_d;// Block type: Double
-	NXOpen::BlockStyler::DoubleBlock* k5_d;// Block type: Double
-	NXOpen::BlockStyler::Group* group3;// Block type: Group
-	NXOpen::BlockStyler::DoubleBlock* clampingForce_d;// Block type: Double
-	NXOpen::BlockStyler::FileSelection* machinigForcesData;// Block type: NativeFileBrowser
-	NXOpen::BlockStyler::Group* group4;// Block type: Group
-	NXOpen::BlockStyler::FileSelection* w1_f;// Block type: NativeFileBrowser
-	NXOpen::BlockStyler::FileSelection* w2_f;// Block type: NativeFileBrowser
-	NXOpen::BlockStyler::FileSelection* b1_f;// Block type: NativeFileBrowser
-	NXOpen::BlockStyler::FileSelection* b2_f;// Block type: NativeFileBrowser
-	NXOpen::BlockStyler::FileSelection* inputMinAndRange_f;// Block type: NativeFileBrowser
-	NXOpen::BlockStyler::FileSelection* outputMinAndRange_f;// Block type: NativeFileBrowser
-	NXOpen::BlockStyler::FileSelection* AveDevNormalizationCoeficients_f;// Block type: NativeFileBrowser
+	 const char* theDlxFileName;
+    NXOpen::BlockStyler::BlockDialog* theDialog;
+    NXOpen::BlockStyler::Label* progress;// Block type: Label
+    NXOpen::BlockStyler::Group* group5;// Block type: Group
+    NXOpen::BlockStyler::Toggle* drawContactPoints_t;// Block type: Toggle
+    NXOpen::BlockStyler::Toggle* showSimulation_t;// Block type: Toggle
+    NXOpen::BlockStyler::MultilineString* resultSummary;// Block type: Multiline String
+    NXOpen::BlockStyler::Button* run;// Block type: Button
+    NXOpen::BlockStyler::FaceCollector* face_select0;// Block type: Face Collector
+    NXOpen::BlockStyler::Group* group0;// Block type: Group
+    NXOpen::BlockStyler::IntegerBlock* iterations_i;// Block type: Integer
+    NXOpen::BlockStyler::IntegerBlock* epochs_i;// Block type: Integer
+    NXOpen::BlockStyler::DoubleBlock* singulaityDrop;// Block type: Double
+    NXOpen::BlockStyler::DoubleBlock* randomPhasePortion;// Block type: Double
+    NXOpen::BlockStyler::Group* group;// Block type: Group
+    NXOpen::BlockStyler::DoubleBlock* alpha_d;// Block type: Double
+    NXOpen::BlockStyler::IntegerBlock* beta_i;// Block type: Integer
+    NXOpen::BlockStyler::Group* group1;// Block type: Group
+    NXOpen::BlockStyler::Toggle* useCurvatureCorrection_t;// Block type: Toggle
+    NXOpen::BlockStyler::DoubleBlock* zscoreMaxLimit;// Block type: Double
+    NXOpen::BlockStyler::Toggle* increseReactions;// Block type: Toggle
+    NXOpen::BlockStyler::Toggle* countForFriction_t;// Block type: Toggle
+    NXOpen::BlockStyler::DoubleBlock* frictionCoeficient_d;// Block type: Double
+    NXOpen::BlockStyler::DrawingArea* drawingArea0;// Block type: Drawing Area
+    NXOpen::BlockStyler::DoubleBlock* k1_d;// Block type: Double
+    NXOpen::BlockStyler::DoubleBlock* k2_d;// Block type: Double
+    NXOpen::BlockStyler::DoubleBlock* k3_d;// Block type: Double
+    NXOpen::BlockStyler::DoubleBlock* k4_d;// Block type: Double
+    NXOpen::BlockStyler::DoubleBlock* k5_d;// Block type: Double
+    NXOpen::BlockStyler::DoubleBlock* k6_d;// Block type: Double
+    NXOpen::BlockStyler::Group* group3;// Block type: Group
+    NXOpen::BlockStyler::DoubleBlock* clampingForce_d;// Block type: Double
+    NXOpen::BlockStyler::FileSelection* machinigForcesData;// Block type: NativeFileBrowser
 };
 #endif //fixturemodule_H_INCLUDED
